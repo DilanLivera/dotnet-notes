@@ -13,26 +13,37 @@ This is to customise the validation error send by .Net Core with a custom error.
             {
                 options.InvalidModelStateResponseFactory = context =>
                 {
-                    Dictionary<string, string> validationErrors = new Dictionary<string, string>();
+                    Dictionary<string, List<string>> validationErrors = new Dictionary<string, List<string>>();
 
-                    foreach(string key in context.ModelState.Keys)
+                    foreach(string field in context.ModelState.Keys)
                     {
-                        context.ModelState.TryGetValue(key, out ModelStateEntry modelStateEntry);
+                        context.ModelState.TryGetValue(field, out ModelStateEntry modelStateEntry);
+
                         foreach (ModelError modelError in modelStateEntry.Errors)
                         {
-                            validationErrors.Add(key, modelError.ErrorMessage);
+                            if(!validationErrors.ContainsKey(field))
+                            {
+                                validationErrors.Add(field, new List<string>());
+                            }
+
+                            if (validationErrors.TryGetValue(field, out List<string> errors))
+                            {
+                                errors.Add(modelError.ErrorMessage);
+                            }
                         }
                     }
 
-                    var result = new BadRequestObjectResult(validationErrors);
+                    BadRequestObjectResult result = new BadRequestObjectResult(validationErrors);
 
                     result.ContentTypes.Add(MediaTypeNames.Application.Json);
                     result.ContentTypes.Add(MediaTypeNames.Application.Xml);
 
                     /*
-                      * output -
+                      * output - ex.
                       * {
-                      *      "Id": "The Id field is required."
+                      *      "Id": [
+                      *          "The Id field is required."
+                      *      ]
                       * }
                       */
                     return result;
